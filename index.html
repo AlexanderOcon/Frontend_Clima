@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     body {
-      background: linear-gradient(135deg, #0e7f7a 0%, #b2bef2 100%);
+      background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
       min-height: 100vh;
     }
     #mapa {
@@ -33,111 +33,117 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="mb-0">Pronóstico 12 horas</h2>
     </div>
+
     <div id="estado" class="loading">
-      Obtendiendo tu ubicación...
+      Obteniendo tu ubicación...
     </div>
+
     <div id="contenido" class="d-none">
       <!-- Mapa -->
       <div id="mapa"></div>
+
       <!-- Info de ubicación -->
       <p class="text-muted mb-3" id="coords"></p>
+
       <!-- Pronóstico -->
-      <div class="row g-3" id="listahoras"></div>
+      <div class="row g-3" id="listaHoras"></div>
     </div>
   </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
   <script>
-    const BACKEND_URL = "https://backend-gatos-correcciones.onrender.com"; // Use su URL de backend
+const BACKEND_URL = "https://backend-gatos-correcciones.onrender.com"; // Use su URL de backend
 
-    async function iniciar() {
-      if (navigator.geolocation) {
-        document.getElementById("estado").textContent = "Tu navegador no soporta geolocalización.";
-        return;
-      }
+async function iniciar() {
+  if (!navigator.geolocation) {
+    document.getElementById("estado").textContent = "Tu navegador no soporta geolocalización.";
+    return;
+  }
 
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const lat = position.coords.latitude;
-          const lon = position.coords.longitude;
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      const lat = position.coords.latitude;
+      const lon = position.coords.longitude;
 
-          try {
-            const res = await fetch(`${BACKEND_URL}/clima?lat=${lat}&lon=${lon}`);
-            const data = await res.json();
+      try {
+        const res = await fetch(`${BACKEND_URL}/clima?lat=${lat}&lon=${lon}`);
+        const data = await res.json();
 
-            if (!res.ok) {
-              throw new Error(data.message || "Error al obtener el clima");
-            }
-
-            mostrarDatos(data);
-          } catch (error) {
-            document.getElementById("estado").textContent = "Error: " + error.message;
-          }
-        },
-        (error) => {
-          let mensaje = "No se pudo obtener la ubicación.";
-          if (error.code === 1) mensaje = "Permiso de ubicación denegado.";
-          if (error.code === 2) mensaje = "Ubicación no disponible.";
-          if (error.code === 3) mensaje = "Tiempo de espera agotado.";
-          document.getElementById("estado").textContent = mensaje;
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0,
+        if (!res.ok) {
+          throw new Error(data.mensaje || "Error al obtener el clima");
         }
-      );
+
+        mostrarDatos(data);
+      } catch (error) {
+        document.getElementById("estado").textContent = "Error: " + error.message;
+      }
+    },
+    (error) => {
+      let mensaje = "No se pudo obtener la ubicación.";
+      if (error.code === 1) mensaje = "Permiso de ubicación denegado.";
+      if (error.code === 2) mensaje = "Ubicación no disponible.";
+      if (error.code === 3) mensaje = "Tiempo de espera agotado.";
+      document.getElementById("estado").textContent = mensaje;
     }
+  );
+}
 
-    function mostrarDatos(data) {
-      document.getElementById("estado").classList.add("d-none");
-      document.getElementById("contenido").classList.remove("d-none");
+function mostrarDatos(data) {
+  document.getElementById("estado").classList.add("d-none");
+  document.getElementById("contenido").classList.remove("d-none");
 
-      // Coordenadas
-      document.getElementById("coords").textContent =
-        `Lat: ${data.ubicacion.latitud.toFixed(4)} | Lon: ${data.ubicacion.longitud.toFixed(4)}`;
+  // Coordenadas
+  document.getElementById("coords").textContent =
+    `Lat: ${data.ubicacion.latitud.toFixed(4)} | Lon: ${data.ubicacion.longitud.toFixed(4)}`;
 
-      // Mapa
-      const mapa = L.map("mapa").setView(
-        [data.ubicacion.latitud, data.ubicacion.longitud],
-        13
-      );
+  // Mapa
+  const mapa = L.map("mapa").setView(
+    [data.ubicacion.latitud, data.ubicacion.longitud],
+    13
+  );
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-      }).addTo(mapa);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(mapa);
 
-      L.marker([data.ubicacion.latitud, data.ubicacion.longitud])
-        .addTo(mapa)
-        .bindPopup("Tu ubicación actual")
-        .openPopup();
+  L.marker([data.ubicacion.latitud, data.ubicacion.longitud])
+    .addTo(mapa)
+    .bindPopup("Tu ubicación actual")
+    .openPopup();
 
-      // Pronóstico por hora
-      const contenedor = document.getElementById("listahoras");
-      contenedor.innerHTML = data.pronostico.map((item) => {
-        const fecha = new Date(item.hora);
-        const horaTexto = fecha.toLocaleTimeString("es-ES", {
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-        const diaTexto = fecha.toLocaleDateString("es-ES", {
-          weekday: "short",
-          day: "numeric",
-        });
+  // Pronóstico por hora
+  const contenedor = document.getElementById("listaHoras");
 
-        return `
-          <div class="col-6 col-md-4 col-lg-3">
-            <div class="card hora-card p-3 text-center h-100">
-              <div class="fw-bold">${horaTexto}</div>
-              <small class="text-muted">${diaTexto}</small>
-              <div class="fs-4 mt-2">${item.temperatura}°C</div>
-              <div class="text-primary mt-1">${item.probabilidadLluvia}%</div>
-            </div>
+  contenedor.innerHTML = data.pronostico.map((item) => {
+    const fecha = new Date(item.hora);
+
+    const horaTexto = fecha.toLocaleTimeString("es-ES", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    const diaTexto = fecha.toLocaleDateString("es-ES", {
+      weekday: "short",
+      day: "numeric",
+    });
+
+    return `
+      <div class="col-6 col-md-4 col-lg-3">
+        <div class="card hora-card p-3 text-center h-100">
+          <div class="fw-bold">${horaTexto}</div>
+          <small class="text-muted">${diaTexto}</small>
+          <div class="fs-4 mt-2">${item.temperatura}°C</div>
+          <div class="text-primary mt-1">
+            ${item.probabilidadLluvia}%
           </div>
-        `;
-      }).join("");
-    }
+        </div>
+      </div>
+    `;
+  }).join("");
+}
 
-    iniciar();
+iniciar();
   </script>
 </body>
 </html>
